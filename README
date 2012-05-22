@@ -1,0 +1,54 @@
+FlashSocket.js
+=========================
+
+A Flash/AS3 implementation of a WebSocket protocol client with a JavaScript interface to enable WebSocket in legacy browsers including IE6.
+
+**This project is still in a alpha state and does not implement full features (eg. TLS support, Cookie support).**
+
+
+
+Example
+-------------------------
+
+    <!DOCTYPE html>
+    <html>
+    <script src="swfobject.js"></script>
+    <script src="flashsocket.js"></script>
+    <script>
+    var socket = new FlashSocket("ws://localhost:9000/websocket");
+
+    socket.onopen = function (e) {
+        console.log("Socket opened");
+        socket.send("hello world");
+    };
+    socket.onmessage = function (e) {
+        console.log("Recieved message: " + e.data);
+        socket.close();
+    };
+    socket.onclose = function (e) {
+        console.log("Socket closed");
+    };
+    </script>
+    </html>
+
+
+Client Requirements
+-------------------------
+
+Adobe Flash Player 9 or above.
+
+
+Tested browsers
+-------------------------
+
+* Internet Explorer: 6 and 9
+* Opera 11.62
+
+
+Dependencies
+-------------------------
+
+[SWFObject 2.2][SWFObject]
+
+
+[SWFObject]: http://code.google.com/p/swfobject/
