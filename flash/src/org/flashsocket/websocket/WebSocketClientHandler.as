@@ -544,8 +544,6 @@ package org.flashsocket.websocket {
 			// TODO
 			// The function and event name do not match the actual logic
 			// updateBuffer() and Event(bufferChange) might be good
-			clearTimeout(_emptyBufferTimeout);
-			_emptyBufferTimeout = 0;
 			
 			if (_sendedAmount) {
 				_bufferedAmount -= _sendedAmount;
@@ -713,9 +711,8 @@ package org.flashsocket.websocket {
 				_sendedAmount += frame.payload.length;
 				
 				// Reserve a timer to update the bufferedAmount in the next event loop
-				if (!_emptyBufferTimeout) {
-					_emptyBufferTimeout = setTimeout(emptyBuffer, 1);
-				}
+				clearTimeout(_emptyBufferTimeout);
+				_emptyBufferTimeout = setTimeout(emptyBuffer, 1);
 			}
 		}
 		

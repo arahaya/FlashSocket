@@ -83,14 +83,12 @@ package org.flashsocket {
 			ExternalInterface.addCallback("send", onExternalSend);
 			ExternalInterface.addCallback("close", onExternalClose);
 			
-			/*
 			ExternalInterface.addCallback("getUrl", onExternalGetUrl);
 			ExternalInterface.addCallback("getReadyState", onExternalGetReadyState);
+			ExternalInterface.addCallback("getBufferedAmount", onExternalGetBufferedAmount);
 			ExternalInterface.addCallback("getExtensions", onExternalGetExtensions);
 			ExternalInterface.addCallback("getProtocol", onExternalGetProtocol);
-			// bufferedAmount not supported
 			// binaryType not supported
-			*/
 			
 			ExternalInterface.addCallback("getLastException", onExternalGetLastException);
 			
@@ -196,25 +194,27 @@ package org.flashsocket {
 			}
 		}
 		
-		/*
-		private function onExternalGetUrl():String {
-			return websocket ? websocket.url : undefined;
+		private function onExternalGetUrl(instanceId:int):String {
+			return instances[instanceId] ? instances[instanceId].url : "";
 		}
 		
-		private function onExternalGetReadyState():int {
-			return websocket ? websocket.readyState : undefined;
+		private function onExternalGetReadyState(instanceId:int):int {
+			return instances[instanceId] ? instances[instanceId].readyState : 0;
 		}
 		
-		private function onExternalGetExtensions():String {
-			return websocket ? websocket.extensions : undefined;
+		private function onExternalGetBufferedAmount(instanceId:int):uint {
+			return instances[instanceId] ? instances[instanceId].bufferedAmount : 0;
 		}
 		
-		private function onExternalGetProtocol():String {
-			return websocket ? websocket.protocol : undefined;
+		private function onExternalGetExtensions(instanceId:int):String {
+			return instances[instanceId] ? instances[instanceId].extensions : "";
 		}
-		*/
 		
-		private function onExternalGetLastException():String {
+		private function onExternalGetProtocol(instanceId:int):String {
+			return instances[instanceId] ? instances[instanceId].protocol : "";
+		}
+		
+		private function onExternalGetLastException(instanceId:int):String {
 			return lastException ? lastException.message : "";
 		}
 	}
