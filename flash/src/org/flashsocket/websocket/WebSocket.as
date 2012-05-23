@@ -49,7 +49,7 @@ package org.flashsocket.websocket {
 			//    scheme component that is itself a secure protocol, e.g. 
 			//    HTTPS, then throw a SecurityError exception.
 			
-			if (/^https/i.test(origin)) {
+			if (!secure && /^https:/i.test(origin)) {
 				// Opera11.62 and Chrome18 seem to allow this..
 				throw new SecurityError("Protocol does not match origin protocol");
 			}

@@ -1,4 +1,7 @@
 package org.flashsocket.websocket {
+	import com.hurlant.crypto.tls.TLSConfig;
+	import com.hurlant.crypto.tls.TLSEngine;
+	import com.hurlant.crypto.tls.TLSSecurityParameters;
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
 	import flash.events.IOErrorEvent;
@@ -10,6 +13,7 @@ package org.flashsocket.websocket {
 	import flash.utils.setTimeout;
 	import flash.utils.clearTimeout;
 	import flash.utils.Timer;
+	import com.hurlant.crypto.tls.TLSSocket;
 	import org.flashsocket.utils.Base64;
 	import org.flashsocket.utils.Debugger;
 	import org.flashsocket.utils.SHA1;
@@ -669,7 +673,14 @@ package org.flashsocket.websocket {
 			_secure   = secure;
 			_origin   = origin;
 			
-			_socket = new Socket(_host, _port);
+			if (secure) {
+				var config:TLSConfig = new TLSConfig(TLSEngine.CLIENT, null, null, null, null, null, TLSSecurityParameters.PROTOCOL_VERSION);
+				config.trustAllCertificates = true;
+				config.ignoreCommonNameMismatch = true;
+				_socket = new TLSSocket(_host, _port, config);
+			} else {
+				_socket = new Socket(_host, _port);
+			}
 			_socket.addEventListener(Event.CONNECT, onSocketConnect);
 			_socket.addEventListener(Event.CLOSE, onSocketClose);
 			_socket.addEventListener(IOErrorEvent.IO_ERROR, onSocketIOError);
