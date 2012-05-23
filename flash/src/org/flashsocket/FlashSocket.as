@@ -35,7 +35,7 @@ package org.flashsocket {
 			
 			
 			if (CONFIG::debug && new RegExp("file://").test(loaderInfo.url)) {
-				var instance:WebSocket = new WebSocket("wss://localhost:8443/websocket", []);
+				var instance:WebSocket = new WebSocket("ws://localhost:8080/websocket", []);
 				
 				instance.addEventListener("open", function (e:Event):void {
 					Debugger.log("onopen");
@@ -172,7 +172,7 @@ package org.flashsocket {
 			instances[instanceId] = instance;
 		}
 		
-		private function onExternalSend(instanceId:int, data:String):Number {
+		private function onExternalSend(instanceId:int, data:String):uint {
 			Debugger.log("onExternalSend", instanceId, data);
 			
 			try {

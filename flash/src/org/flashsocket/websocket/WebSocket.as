@@ -134,7 +134,7 @@ package org.flashsocket.websocket {
 			return _handler.readyState;
 		}
 		
-		public function get bufferedAmount():Number {
+		public function get bufferedAmount():uint {
 			return _handler.bufferedAmount;
 		}
 		

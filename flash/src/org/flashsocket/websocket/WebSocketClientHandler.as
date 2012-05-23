@@ -64,9 +64,7 @@ package org.flashsocket.websocket {
 		private var _socket:Socket;
 		private var _expectedChallengeResponse:String;
 		private var _fragment:WebSocketFrame;
-		private var _bufferedFrames:Array = [];
-		private var _tasks:Array = [];
-		private var _taskTimer:Timer;
+		private var _emptyBufferTimeout:int;
 		private var _closingHandshakeTimeout:int;
 		
 		private var _secure:Boolean;
@@ -78,12 +76,16 @@ package org.flashsocket.websocket {
 		private var _protocols:Array = [];
 		private var _extensions:Array = [];
 		private var _readyState:int = STATE_CONNECTING;
+		private var _bufferedAmount:uint = 0;
+		private var _sendedAmount:uint = 0;
 		
-		private function changeState(state:int):void {
-			Debugger.log("changeState", state);
+		private function setReadyState(state:int):void {
+			Debugger.log("setReadyState", state);
 			
-			_readyState = state;
-			dispatchEvent(new ReadyStateEvent("readyStateChange", state));
+			if (state !== _readyState) {
+				_readyState = state;
+				dispatchEvent(new ReadyStateEvent("readyStateChange", state));
+			}
 		}
 		
 		private function sendOpeningHandshake():void {
@@ -207,7 +209,7 @@ package org.flashsocket.websocket {
 				//       connection algorithm, which then establishes that the WebSocket connection is closed, which fires 
 				//       the close event.
 				
-				changeState(STATE_CLOSING);
+				setReadyState(STATE_CLOSING);
 				abort("WebSocket is closed before the connection is established.");
 			}
 			
@@ -216,7 +218,7 @@ package org.flashsocket.websocket {
 			if (_readyState === STATE_OPEN) {
 				// Start the WebSocket closing handshake and set the readyState attribute's value to CLOSING (2).
 				
-				changeState(STATE_CLOSING);
+				setReadyState(STATE_CLOSING);
 				
 				// If the first argument is present, then the status code to use in the WebSocket Close message must be 
 				// the integer given by the first argument.
@@ -251,26 +253,10 @@ package org.flashsocket.websocket {
 			}
 		}
 		
-		private function sendBufferedFrames():void {
-			Debugger.log("sendBufferedFrames");
-			
-			if (_readyState === STATE_OPEN) {
-				if (_bufferedFrames.length) {
-					_bufferedFrames.forEach(function (frame:WebSocketFrame, index:int, arr:Array):void {
-						sendFrame(frame);
-					});
-					
-					_bufferedFrames = [];
-					dispatchEvent(new Event("bufferEmpty"));
-				}
-			}
-		}
-		
 		private function sendFrame(frame:WebSocketFrame):void {
 			Debugger.log("sendFrame", frame.opcode);
 			
 			if (_readyState === STATE_CLOSED) {
-				_bufferedFrames.push(frame);
 				return;
 			}
 			
@@ -417,7 +403,7 @@ package org.flashsocket.websocket {
 						sendClosingHandshake(code);
 						
 						// Closing handshake finished
-						changeState(STATE_CLOSED);
+						setReadyState(STATE_CLOSED);
 						
 						// Notify a clean close
 						dispatchEvent(new CloseEvent(code, reason, true));
@@ -425,7 +411,7 @@ package org.flashsocket.websocket {
 						// Wait for the server to close the TCP connection
 					} else {
 						// Closing handshake finished
-						changeState(STATE_CLOSED);
+						setReadyState(STATE_CLOSED);
 						
 						// Terminate the TCP connection
 						closeConnection();
@@ -510,7 +496,7 @@ package org.flashsocket.websocket {
 		private function abort(reason:String):void {
 			Debugger.log('abort', reason);
 			
-			changeState(STATE_CLOSED);
+			setReadyState(STATE_CLOSED);
 			
 			if (_socket.connected) {
 				_socket.close();
@@ -518,10 +504,12 @@ package org.flashsocket.websocket {
 			
 			var error:Error = new Error(reason);
 			
-			// Notify client
-			dispatchEvent(new Event("error"));
-			dispatchEvent(new ExceptionEvent(error));
-			dispatchEvent(new CloseEvent(STATUS_CLOSED_ABNORMALLY, "", false));
+			// Notify the client asynchronously
+			setTimeout(function ():void {
+				dispatchEvent(new Event("error"));
+				dispatchEvent(new ExceptionEvent(error));
+				dispatchEvent(new CloseEvent(STATUS_CLOSED_ABNORMALLY, "", false));
+			}, 1);
 			
 			// Throw an error to stop current task
 			throw error;
@@ -546,42 +534,23 @@ package org.flashsocket.websocket {
 				dispatchEvent(new Event("error"));
 			}
 			
-			changeState(STATE_CLOSED);
+			setReadyState(STATE_CLOSED);
 			dispatchEvent(new CloseEvent(STATUS_CLOSED_ABNORMALLY, "", false));
 		}
 		
-		private function queueTask(callback:Function, ...args):void {
-			Debugger.log('queueTask');
+		private function emptyBuffer():void {
+			// This does not actually empty any buffer
+			// just resets the bufferedAmount property and notifies the client
+			// TODO
+			// The function and event name do not match the actual logic
+			// updateBuffer() and Event(bufferChange) might be good
+			clearTimeout(_emptyBufferTimeout);
+			_emptyBufferTimeout = 0;
 			
-			_tasks.push([callback, args]);
-			
-			if (!_taskTimer || !_taskTimer.running) {
-				_taskTimer = new Timer(1, 1);
-				// Use TIMER_COMPLETE rather than TIMER because we want Timer.running
-				// to equal "false" at the time runTasks gets called.
-				_taskTimer.addEventListener(TimerEvent.TIMER_COMPLETE, runTasks);
-				_taskTimer.start();
+			if (_sendedAmount) {
+				_bufferedAmount -= _sendedAmount;
+				dispatchEvent(new Event("bufferEmpty"));
 			}
-		}
-		
-		private function runTasks(e:TimerEvent):void {
-			Debugger.log('runTasks');
-			
-			// A task might be added inside a task so use a local copy for
-			// execution and reset the global _tasks
-			var tasks:Array = _tasks;
-			_tasks = [];
-			
-			tasks.forEach(function (task:Array, index:int, arr:Array):void {
-				try {
-					var callback:Function = task[0];
-					var args:Array = task[1];
-					
-					callback.apply(null, args);
-				} catch (e:Error) {
-					// Ignore errors and let the remaining tasks to run
-				}
-			});
 		}
 		
 		private function onSocketConnect(e:Event = null):void {
@@ -640,7 +609,7 @@ package org.flashsocket.websocket {
 				// When the WebSocket connection is established, the user agent must queue a task to run these steps:
 				
 				// 1. Change the readyState attribute's value to OPEN (1).
-				changeState(STATE_OPEN);
+				setReadyState(STATE_OPEN);
 				
 				// 2. Change the extensions attribute's value to the extensions in use, if is not the null value.
 				// 3. Change the protocol attribute's value to the subprotocol in use, if is not the null value.
@@ -664,7 +633,7 @@ package org.flashsocket.websocket {
 		}
 		
 		public function WebSocketClientHandler(host:String, port:uint, resource:String, secure:Boolean, protocols:Array, extensions:Array, origin:String, cookies:String) {
-			//changeState(STATE_CONNECTING);
+			//setReadyState(STATE_CONNECTING);
 			
 			_host     = host;
 			_hostport = host + ((!secure && port !== 80) || (secure && port !== 443) ? ":" + port : "");
@@ -712,20 +681,11 @@ package org.flashsocket.websocket {
 			return _readyState;
 		}
 		
-		public function get bufferedAmount():Number {
-			var amount:Number = 0;
-			
-			_bufferedFrames.forEach(function (frame:WebSocketFrame, index:int, arr:Array):void {
-				amount += frame.payload.length;
-			});
-			
-			return amount;
+		public function get bufferedAmount():uint {
+			return _bufferedAmount;
 		}
 		
 		public function send(data:*):void {
-			// TODO
-			// Because of the browsers 60 fps limit
-			// inserting a timer to buffer frames makes it slow
 			var frame:WebSocketFrame;
 			
 			if (data is ByteArray) {
@@ -735,16 +695,52 @@ package org.flashsocket.websocket {
 				frame.payload.writeUTFBytes(data as String);
 			}
 			
-			_bufferedFrames.push(frame);
+			_bufferedAmount += frame.payload.length;
 			
 			if (_readyState === STATE_OPEN) {
-				queueTask(sendBufferedFrames);
-				//sendFrame(frame);
+				try {
+					sendFrame(frame);
+				} catch (e:Error) {
+					// Throw errors asynchronously in public methods
+					var error:Error = e; // for some reason we need a local copy
+					setTimeout(function ():void {
+						throw error;
+					}, 1);
+					return;
+				}
+				
+				// Increase the amount of data that was actually sent
+				_sendedAmount += frame.payload.length;
+				
+				// Reserve a timer to update the bufferedAmount in the next event loop
+				if (!_emptyBufferTimeout) {
+					_emptyBufferTimeout = setTimeout(emptyBuffer, 1);
+				}
 			}
 		}
 		
 		public function close(code:int = -1, reason:String = ""):void {
-			queueTask(sendClosingHandshake, code, reason);
+			try {
+				sendClosingHandshake(code, reason);
+			} catch (e:Error) {
+				// Throw errors asynchronously in public methods
+				var error:Error = e; // for some reason we need a local copy
+				setTimeout(function ():void {
+					throw error;
+				}, 1);
+			}
+		}
+		
+		override public function dispatchEvent(event:Event):Boolean {
+			var ret:Boolean;
+			
+			try {
+				ret = super.dispatchEvent(event);
+			} catch (e:Error) {
+				// pass
+			}
+			
+			return ret;
 		}
 	}
 }
