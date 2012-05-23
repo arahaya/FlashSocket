@@ -60,6 +60,8 @@
                 //loader.style.display = 'none';
                 document.body.appendChild(loader);
                 
+                trace(swfobject.getFlashPlayerVersion().major)
+                
                 swfobject.embedSWF(
                     // swf url
                     global[NAMESPACE + 'SWF_LOCATION'] || 'flashsocket.swf',
@@ -78,7 +80,7 @@
                     // params
                     { allowScriptAccess: 'always', wmode: 'transparent' },
                     // attributes
-                    { style: 'position:absolute;top:-1px;left:-1px;' },
+                    { style: 'position:absolute;top:0px;left:0px;' },
                     // callback
                     function (e) {
                         ;;; trace('swfobject.embedSWF.callback', e.id, e.success);

@@ -44,6 +44,8 @@ Tested browsers
 
 * Internet Explorer: 6 and 9
 * Opera 11.62
+* Firefox 3.6.16
+* Safari 5.1.5 (Win7)
 
 
 Dependencies
