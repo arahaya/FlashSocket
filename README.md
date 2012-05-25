@@ -16,7 +16,7 @@ Example
     <script src="swfobject.js"></script>
     <script src="flashsocket.js"></script>
     <script>
-    var socket = new FlashSocket("ws://localhost:9000/websocket");
+    var socket = new FlashSocket("ws://localhost:8080/websocket");
 
     socket.onopen = function (e) {
         console.log("Socket opened");
