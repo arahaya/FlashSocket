@@ -1,13 +1,15 @@
-/**
- * Config properties
- * required to be defined before script load
- * // force FlashSocket over native WebSocket
- * __FLASHSOCKET__FORCE_FLASH = false;
- * // enable debug mode for development
- * __FLASHSOCKET__DEBUG = false;
- * // url for flashsocket.swf location
- * __FLASHSOCKET__SWF_LOCATION = 'flashsocket.swf'
- */
+// Config properties
+// required to be defined before script load
+//
+// force FlashSocket over native WebSocket
+// __FLASHSOCKET__FORCE_FLASH = false;
+//
+// enable debug mode for development
+// __FLASHSOCKET__DEBUG = false;
+//
+// url for flashsocket.swf location
+// __FLASHSOCKET__SWF_LOCATION = 'flashsocket.swf'
+
 (function () {
     'use strict';
     
@@ -54,17 +56,15 @@
             flashInitialized = true;
             
             swfobject.addDomLoadEvent(function () {
-                var loader = document.createElement('div');
+                var loader = document.createElement('div'),
+                    swfUrl = global[NAMESPACE + 'SWF_LOCATION'] || 'flashsocket.swf';
                 
                 loader.id = NAMESPACE + 'LOADER';
-                //loader.style.display = 'none';
                 document.body.appendChild(loader);
-                
-                trace(swfobject.getFlashPlayerVersion().major)
                 
                 swfobject.embedSWF(
                     // swf url
-                    global[NAMESPACE + 'SWF_LOCATION'] || 'flashsocket.swf',
+                    swfUrl,
                     // replaced element id
                     loader.id,
                     // swf width
@@ -88,7 +88,7 @@
                         if (e.success) {
                             flash = e.ref;
                         } else {
-                            ;;; trace("Failed to embed swf '" + FlashSocket.SWF_LOCATION + "'");
+                            ;;; trace("Failed to embed swf '" + swfUrl + "'");
                         }
                     }
                 );
@@ -320,7 +320,6 @@
         onexception: async(function (id, name, message) {
             ;;; trace('FlashSocket.ExternalInterface.onexception', id, name, message);
             
-            //throw new (global[name] || Error)(message);
             throw new Error(message);
         }),
         onreadystatechange: function (id, state) {
