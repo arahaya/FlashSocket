@@ -1,20 +1,19 @@
 package org.flashsocket.websocket {
-	import com.hurlant.crypto.tls.TLSConfig;
-	import com.hurlant.crypto.tls.TLSEngine;
-	import com.hurlant.crypto.tls.TLSSecurityParameters;
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
 	import flash.events.IOErrorEvent;
 	import flash.events.ProgressEvent;
 	import flash.events.SecurityErrorEvent;
-	import flash.events.TimerEvent;
 	import flash.net.Socket;
 	import flash.utils.ByteArray;
 	import flash.utils.setTimeout;
 	import flash.utils.clearTimeout;
-	import flash.utils.Timer;
+	import com.hurlant.crypto.tls.TLSConfig;
+	import com.hurlant.crypto.tls.TLSEngine;
+	import com.hurlant.crypto.tls.TLSSecurityParameters;
 	import com.hurlant.crypto.tls.TLSSocket;
 	import org.flashsocket.utils.Base64;
+	import org.flashsocket.utils.ByteArrayUtil;
 	import org.flashsocket.utils.Debugger;
 	import org.flashsocket.utils.SHA1;
 	import org.flashsocket.utils.StringUtil;
@@ -62,6 +61,7 @@ package org.flashsocket.websocket {
 		public static const STATUS_TLS_FAILURE:int            = 1015;
 		
 		private var _socket:Socket;
+		private var _buffer:ByteArray;
 		private var _expectedChallengeResponse:String;
 		private var _fragment:WebSocketFrame;
 		private var _emptyBufferTimeout:int;
@@ -114,24 +114,41 @@ package org.flashsocket.websocket {
 			_socket.flush();
 		}
 		
-		private function readOpeningHandshake(buffer:ByteArray):void {
+		private function readHttpHeader(buffer:ByteArray):String {
+			var i:int = buffer.position + 3;
+			var length:int = buffer.length;
+			
+			// Search for \r\n\r\n
+			// \r => 13, \n => 10
+			
+			while (i < length) {
+				if (buffer[i - 3] == 13 && buffer[i - 2] == 10 && buffer[i - 1] == 13 && buffer[i] == 10) {
+					// Found, read from buffer.position to i+1
+					return buffer.readUTFBytes((i + 1) - buffer.position);
+				}
+				
+				i++;
+			}
+			
+			return null;
+		}
+		
+		private function readOpeningHandshake(httpResponse:String):void {
 			Debugger.log("readOpeningHandshake");
 			
+			var lines:Array = httpResponse.split("\r\n");
 			var line:String;
 			var matcher:Object;
-			var i:int;
-			var l:int;
 			
 			// Parse Response code
-			line = WebSocketUtil.readLine(buffer);
+			line = lines.shift();
 			matcher = /\s(\d+)\s/.exec(line);
-			var responseCode:int;
 			
 			if (matcher === null) {
 				abort("No response code found: " + line);
 			}
 			
-			responseCode = int(matcher[1]);
+			var responseCode:int = int(matcher[1]);
 			
 			if (responseCode !== 101) {
 				abort("Unexpected response code: " + responseCode);
@@ -142,7 +159,7 @@ package org.flashsocket.websocket {
 			var key:String;
 			var value:String;
 			
-			while ((line = WebSocketUtil.readLine(buffer)) !== "") {
+			while ((line = lines.shift()) !== "") {
 				matcher = /^([^:]+):\s*([^\s]*)$/.exec(line);
 				
 				if (matcher !== null) {
@@ -159,18 +176,26 @@ package org.flashsocket.websocket {
 			// Check for required headers
 			if (headers['upgrade'] === undefined) {
 				abort("'Upgrade' header is missing");
-			} else if (headers['connection'] === undefined) {
+			}
+			
+			if (headers['connection'] === undefined) {
 				abort("'Connection' header is missing");
-			} else if (headers['sec-websocket-accept'] === undefined) {
+			}
+			
+			if (headers['sec-websocket-accept'] === undefined) {
 				abort("'Sec-WebSocket-Accept' header is missing");
 			}
 			
 			// Check for required values
 			if (headers['upgrade'] !== 'websocket') {
 				abort("'Upgrade' header value is not 'WebSocket'");
-			} else if (headers['connection'] !== 'upgrade') {
+			}
+			
+			if (headers['connection'] !== 'upgrade') {
 				abort("'Connection' header value is not 'Upgrade'");
-			} else if (headers['sec-websocket-accept'] !== _expectedChallengeResponse) {
+			}
+			
+			if (headers['sec-websocket-accept'] !== _expectedChallengeResponse) {
 				abort("Sec-WebSocket-Accept mismatch");
 			}
 			
@@ -184,8 +209,6 @@ package org.flashsocket.websocket {
 					}
 				});
 			}
-			
-			// TODO: Handle Sec-WebSocket-Extensions header
 		}
 		
 		private function sendClosingHandshake(code:int = -1, reason:String = ""):void {
@@ -279,14 +302,10 @@ package org.flashsocket.websocket {
 			} else if (payloadLength <= 0xFFFF) {
 				header.writeByte(0x80 | 126);
 				header.writeShort(payloadLength);
-			} else if (payloadLength <= 0xFFFFFFFF) {
+			} else {
 				header.writeByte(0x80 | 127);
-				// 64 bit Long
 				header.writeUnsignedInt(0);
 				header.writeUnsignedInt(payloadLength);
-			} else {
-				// Can't handle a message larger than 0xFFFFFFFF
-				abort("Payload length too long");
 			}
 			
 			// Masking-key: 4 bytes
@@ -311,17 +330,20 @@ package org.flashsocket.websocket {
 		private function readFrame(buffer:ByteArray):WebSocketFrame {
 			Debugger.log("readFrame");
 			
-			var bufferLength:uint = buffer.length;
+			var startPosition:int = buffer.position;
 			var byte:int;
 			var finalFragment:Boolean;
 			var rsv:int;
 			var opcode:int;
 			var payloadMasked:Boolean;
 			var payloadLength:uint;
+			var mask:ByteArray;
 			var payload:ByteArray;
+			var i:int;
 			
-			if (bufferLength < 2) {
-				abort("Received invalid frame");
+			if (buffer.bytesAvailable < 2) {
+				// Not enough data
+				return null;
 			}
 			
 			// FIN: 1 bit
@@ -336,38 +358,65 @@ package org.flashsocket.websocket {
 			// Payload length: 7 bits, 7+16 bits, or 7+64 bits
 			byte = buffer.readByte();
 			payloadMasked = (byte & 0x80) !== 0;
-			
-			if (payloadMasked) {
-				// Server message should never be masked
-				abort("Received masked payload");
-			}
-			
 			payloadLength = byte & 0x7F;
 			
 			if (payloadLength === 126) {
+				if (buffer.bytesAvailable < 2) {
+					// Not enough data, rewind position
+					buffer.position = startPosition;
+					return null;
+				}
+				
 				payloadLength = buffer.readUnsignedShort();
 			} else if (payloadLength === 127) {
+				if (buffer.bytesAvailable < 8) {
+					// Not enough data, rewind position
+					buffer.position = startPosition;
+					return null;
+				}
+				
 				if (buffer.readUnsignedInt() > 0) {
 					// Can't handle a message larger than 0xFFFFFFFF
+					// TODO: Send a close frame with code=STATUS_MESSAGE_TOO_BIG
 					abort("Payload length too long");
 				}
 				
 				payloadLength = buffer.readUnsignedInt();
 			}
 			
-			if (payloadLength > (bufferLength - buffer.position)) {
-				// Not enough bytes left
-				// should we wait for the next SOCKET_DATA event?
-				abort("Received invalid frame");
+			if (payloadMasked) {
+				// Server message should never be masked but Firefox and
+				// Chrome seems to allow this so it is probably better
+				// to support it just in case.
+				Debugger.log("Received masked frame");
+				
+				if (buffer.bytesAvailable < 4) {
+					// Not enough data, rewind position
+					buffer.position = startPosition;
+					return null;
+				}
+				
+				mask = new ByteArray();
+				buffer.readBytes(mask, 0, 4);
 			}
 			
 			// Extension data: x bytes
 			// Application data: y bytes
 			// Payload data: (x+y) bytes
-			payload = new ByteArray();
+			if (payloadLength > buffer.bytesAvailable) {
+				// Not enough data, rewind position
+				buffer.position = startPosition;
+				return null;
+			}
 			
-			if (payloadLength) {
-				buffer.readBytes(payload, 0, payloadLength);
+			payload = new ByteArray();
+			buffer.readBytes(payload, 0, payloadLength);
+			
+			if (payloadMasked) {
+				// Apply mask
+				for (i = 0; i < payloadLength; i++) {
+					payload[i] = payload[i] ^ mask[i % 4];
+				}
 			}
 			
 			return new WebSocketFrame(opcode, finalFragment, rsv, payload);
@@ -454,11 +503,9 @@ package org.flashsocket.websocket {
 					handleMessageFrame(_fragment);
 				}
 			} else {
-				// Text/Binary frame
+				// Text or Binary frame
 				if (_fragment) {
-					// Ignore fragment
-					// Should we abort?
-					_fragment = null;
+					abort("Received nested fragments");
 				}
 				
 				if (frame.finalFragment) {
@@ -497,6 +544,7 @@ package org.flashsocket.websocket {
 			Debugger.log('abort', reason);
 			
 			setReadyState(STATE_CLOSED);
+			_buffer = null;
 			
 			if (_socket.connected) {
 				_socket.close();
@@ -511,7 +559,7 @@ package org.flashsocket.websocket {
 				dispatchEvent(new CloseEvent(STATUS_CLOSED_ABNORMALLY, "", false));
 			}, 1);
 			
-			// Throw an error to stop current task
+			// Throw an error to stop the current task
 			throw error;
 		}
 		
@@ -588,7 +636,7 @@ package org.flashsocket.websocket {
 		}
 		
 		private function onSocketData(e:ProgressEvent = null):void {
-			Debugger.log('onSocketData');
+			Debugger.log('onSocketData', _socket.bytesAvailable);
 			
 			var frame:WebSocketFrame;
 			
@@ -597,37 +645,63 @@ package org.flashsocket.websocket {
 				return;
 			}
 			
-			var buffer:ByteArray = new ByteArray();
-			_socket.readBytes(buffer);
-			
-			if (_readyState === STATE_CONNECTING) {
-				// Expecting handshake response
-				readOpeningHandshake(buffer);
-				
-				// When the WebSocket connection is established, the user agent must queue a task to run these steps:
-				
-				// 1. Change the readyState attribute's value to OPEN (1).
-				setReadyState(STATE_OPEN);
-				
-				// 2. Change the extensions attribute's value to the extensions in use, if is not the null value.
-				// 3. Change the protocol attribute's value to the subprotocol in use, if is not the null value.
-				
-				// TODO
-				// 4. Act as if the user agent had received a set-cookie-string consisting of the cookies set during the server's opening handshake, for the URL url given to the WebSocket() constructor.
-				
-				// 5. Fire a simple event named open at the WebSocket object.
-				dispatchEvent(new Event('open'));
+			if (!_buffer) {
+				_buffer = new ByteArray();
 			}
 			
-			while (buffer.bytesAvailable) {
-				frame = readFrame(buffer);
-				
-				if (frame.opcode >> 3 === 1) {
-					handleControlFrame(frame);
+			_socket.readBytes(_buffer, _buffer.length);
+			
+			while (_buffer.bytesAvailable) {
+				if (_readyState === STATE_CONNECTING) {
+					// Expecting handshake response
+					var response:String = readHttpHeader(_buffer);
+					
+					if (response === null) {
+						// header is incomplete
+						// wait for the next SOCKET_DATA event
+						Debugger.log("Waiting for more data...");
+						return;
+					}
+					
+					// Verify handshake response
+					readOpeningHandshake(response);
+					
+					// When the WebSocket connection is established, the user agent must queue a task to run these steps:
+					
+					// 1. Change the readyState attribute's value to OPEN (1).
+					setReadyState(STATE_OPEN);
+					
+					// 2. Change the extensions attribute's value to the extensions in use, if is not the null value.
+					// 3. Change the protocol attribute's value to the subprotocol in use, if is not the null value.
+					
+					// TODO
+					// 4. Act as if the user agent had received a set-cookie-string consisting of the cookies set during the server's opening handshake, for the URL url given to the WebSocket() constructor.
+					
+					// 5. Fire a simple event named open at the WebSocket object.
+					dispatchEvent(new Event('open'));
+					
+					_buffer = ByteArrayUtil.remainingBytes(_buffer);
 				} else {
-					handleDataFrame(frame);
+					frame = readFrame(_buffer);
+					
+					if (frame === null) {
+						// frame is incomplete
+						// wait for the next SOCKET_DATA event
+						Debugger.log("Waiting for more data...");
+						return;
+					}
+					
+					if (frame.opcode >> 3 === 1) {
+						handleControlFrame(frame);
+					} else {
+						handleDataFrame(frame);
+					}
+					
+					_buffer = ByteArrayUtil.remainingBytes(_buffer);
 				}
 			}
+			
+			_buffer = null;
 		}
 		
 		public function WebSocketClientHandler(host:String, port:uint, resource:String, secure:Boolean, protocols:Array, extensions:Array, origin:String, cookies:String) {
@@ -641,7 +715,7 @@ package org.flashsocket.websocket {
 			_origin   = origin;
 			
 			if (secure) {
-				var config:TLSConfig = new TLSConfig(TLSEngine.CLIENT, null, null, null, null, null, TLSSecurityParameters.PROTOCOL_VERSION);
+				var config:TLSConfig = new TLSConfig(TLSEngine.CLIENT);
 				config.trustAllCertificates = true;
 				config.ignoreCommonNameMismatch = true;
 				_socket = new TLSSocket(_host, _port, config);
@@ -696,16 +770,7 @@ package org.flashsocket.websocket {
 			_bufferedAmount += frame.payload.length;
 			
 			if (_readyState === STATE_OPEN) {
-				try {
-					sendFrame(frame);
-				} catch (e:Error) {
-					// Throw errors asynchronously in public methods
-					var error:Error = e; // for some reason we need a local copy
-					setTimeout(function ():void {
-						throw error;
-					}, 1);
-					return;
-				}
+				sendFrame(frame);
 				
 				// Increase the amount of data that was actually sent
 				_sendedAmount += frame.payload.length;
@@ -728,11 +793,11 @@ package org.flashsocket.websocket {
 			}
 		}
 		
-		override public function dispatchEvent(event:Event):Boolean {
+		override public function dispatchEvent(e:Event):Boolean {
 			var ret:Boolean;
 			
 			try {
-				ret = super.dispatchEvent(event);
+				ret = super.dispatchEvent(e);
 			} catch (e:Error) {
 				// pass
 			}

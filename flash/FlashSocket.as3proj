@@ -41,7 +41,7 @@
     <option linkReport="" />
     <option loadExterns="" />
     <option staticLinkRSL="True" />
-    <option additional="" />
+    <option additional="--keep-generated-signatures" />
     <option compilerConstants="" />
     <option minorVersion="" />
   </build>

@@ -3,10 +3,8 @@ package org.flashsocket {
 	import flash.events.Event;
 	import flash.external.ExternalInterface;
 	import flash.system.Security;
-	import flash.utils.setTimeout;
 	import org.flashsocket.utils.Browser;
 	import org.flashsocket.utils.Debugger;
-	import org.flashsocket.utils.SHA1;
 	import org.flashsocket.websocket.events.CloseEvent;
 	import org.flashsocket.websocket.events.ExceptionEvent;
 	import org.flashsocket.websocket.events.MessageEvent;
@@ -39,9 +37,7 @@ package org.flashsocket {
 				
 				instance.addEventListener("open", function (e:Event):void {
 					Debugger.log("onopen");
-					instance.send("hello");
-					instance.send("world");
-					instance.close();
+					instance.send("hello world");
 				});
 				instance.addEventListener("error", function (e:Event):void {
 					Debugger.log("onerror");
@@ -50,7 +46,8 @@ package org.flashsocket {
 					Debugger.log("onclose", e.code, e.reason, e.wasClean);
 				});
 				instance.addEventListener("message", function (e:MessageEvent):void {
-					Debugger.log("onmessage", e.data);
+					Debugger.log("onmessage", String(e.data));
+					instance.close();
 				});
 				instance.addEventListener("exception", function (e:ExceptionEvent):void {
 					Debugger.log("onexception", e.error.name, e.error.message);
