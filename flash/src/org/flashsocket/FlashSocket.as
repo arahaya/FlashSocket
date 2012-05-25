@@ -16,6 +16,7 @@ package org.flashsocket {
 		
 		private var instances:Array = [];
 		private var origin:String;
+		private var cookie:String;
 		private var lastException:Error;
 		
 		public function FlashSocket():void {
@@ -75,6 +76,10 @@ package org.flashsocket {
 			// Get the origin of the html page
 			origin = Browser.origin || 'null';
 			Debugger.log("origin", origin);
+			
+			// Get the cookie of the html page
+			cookie = Browser.cookie || '';
+			Debugger.log("cookie", cookie);
 			
 			ExternalInterface.addCallback("connect", onExternalConnect);
 			ExternalInterface.addCallback("send", onExternalSend);
@@ -136,7 +141,7 @@ package org.flashsocket {
 			var instance:WebSocket;
 			
 			try {
-				instance = new WebSocket(url, protocols, origin);
+				instance = new WebSocket(url, protocols, origin, cookie);
 			} catch (e:Error) {
 				lastException = e;
 				throw e;

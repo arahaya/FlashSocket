@@ -27,7 +27,7 @@ package org.flashsocket.websocket {
 		
 		// Constructor
 		// ------------------------------------------------------------
-		public function WebSocket(url:String, protocols:* = undefined, origin:String = "null") {
+		public function WebSocket(url:String, protocols:* = undefined, origin:String = "null", cookie:String = "") {
 			// When the WebSocket() constructor is invoked, the UA must run these steps:
 			
 			// 1. Parse a WebSocket URL's components from the url argument, to
@@ -109,7 +109,7 @@ package org.flashsocket.websocket {
 			//    and the URL url; for these purposes this is not a "non-HTTP" 
 			//    API.
 			
-			_handler = new WebSocketClientHandler(host, port, resource, secure, protocols, [], origin, "");
+			_handler = new WebSocketClientHandler(host, port, resource, secure, protocols, [], origin, cookie);
 			_handler.addEventListener("open", dispatchEvent);
 			_handler.addEventListener("error", dispatchEvent);
 			_handler.addEventListener("close", dispatchEvent);

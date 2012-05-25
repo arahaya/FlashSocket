@@ -75,6 +75,7 @@ package org.flashsocket.websocket {
 		private var _origin:String;
 		private var _protocols:Array = [];
 		private var _extensions:Array = [];
+		private var _cookie:String;
 		private var _readyState:int = STATE_CONNECTING;
 		private var _bufferedAmount:uint = 0;
 		private var _sendedAmount:uint = 0;
@@ -102,6 +103,9 @@ package org.flashsocket.websocket {
 			headers.push('Connection: Upgrade');
 			headers.push('Host: ' + _hostport);
 			headers.push('Origin: ' + _origin);
+			if (_cookie) {
+				headers.push('Cookie: ' + _cookie);
+			}
 			if (_protocols) {
 				headers.push('Sec-WebSocket-Protocol: ' + _protocols.join(", "));
 			}
@@ -704,7 +708,7 @@ package org.flashsocket.websocket {
 			_buffer = null;
 		}
 		
-		public function WebSocketClientHandler(host:String, port:uint, resource:String, secure:Boolean, protocols:Array, extensions:Array, origin:String, cookies:String) {
+		public function WebSocketClientHandler(host:String, port:uint, resource:String, secure:Boolean, protocols:Array, extensions:Array, origin:String, cookie:String) {
 			//setReadyState(STATE_CONNECTING);
 			
 			_host     = host;
@@ -713,6 +717,7 @@ package org.flashsocket.websocket {
 			_resource = resource;
 			_secure   = secure;
 			_origin   = origin;
+			_cookie   = cookie;
 			
 			if (secure) {
 				var config:TLSConfig = new TLSConfig(TLSEngine.CLIENT);
