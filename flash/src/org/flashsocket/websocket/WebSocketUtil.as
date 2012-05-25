@@ -101,50 +101,5 @@ package org.flashsocket.websocket {
 		public static function randomInt(min:int = int.MIN_VALUE, max:int = int.MAX_VALUE):int {
 			return Math.floor(Math.random() * (max - min + 1)) + min;
 		}
-		
-		/**
-		 * Read ByteArray until "\n" char and return a new String
-		 * with line breaks trimed off
-		 * @param	bytes
-		 * @return  line
-		 */
-		public static function readLine(bytes:ByteArray):String {
-			var read:int = -1; // Bytes to read
-			var offset:int = bytes.position;
-			var length:int = bytes.length;
-			var i:int;
-			var next:int;
-			var line:String;
-			
-			// \r => 13
-			// \n => 10
-			
-			for (i = offset; i < length; i++) {
-				if (bytes[i] === 10) {
-					// found "\n"
-					next = i + 1;
-					read = i - offset;
-					
-					if (i > offset && bytes[i - 1] === 13) {
-						// found "\r\n"
-						read -= 1;
-					}
-					
-					break;
-				}
-			}
-			
-			if (read === -1) {
-				// not found, read remaining bytes
-				read = length - offset;
-				next = length;
-			}
-			
-			line = bytes.readUTFBytes(read);
-			
-			// Set position right after the found "\n"
-			bytes.position = next;
-			return line;
-		}
 	}
 }
