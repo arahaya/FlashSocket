@@ -124,33 +124,35 @@ package org.flashsocket.utils {
 			);
 		}
 		
-		public static function test():void {
-			var tests:Array = [
-				"abc",
-				"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
-				"a",
-				"0123456701234567012345670123456701234567012345670123456701234567"
-			];
-			var results:Array = [
-				"A9 99 3E 36 47 06 81 6A BA 3E 25 71 78 50 C2 6C 9C D0 D8 9D",
-				"84 98 3E 44 1C 3B D2 6E BA AE 4A A1 F9 51 29 E5 E5 46 70 F1",
-				"86 F7 E4 37 FA A5 A7 FC E1 5D 1D DC B9 EA EA EA 37 76 67 B8",
-				"E0 C0 94 E8 67 EF 46 C3 50 EF 54 A7 F5 9D D6 0B ED 92 AE 83"
-			];
-			
-			for (var t:int = 0; t < tests.length; t++) {
-				trace("Test " + (t + 1) + ":   " + tests[t]);
-				trace("expected: " + results[t]);
+		CONFIG::debug {
+			public static function test():void {
+				var tests:Array = [
+					"abc",
+					"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+					"a",
+					"0123456701234567012345670123456701234567012345670123456701234567"
+				];
+				var results:Array = [
+					"A9 99 3E 36 47 06 81 6A BA 3E 25 71 78 50 C2 6C 9C D0 D8 9D",
+					"84 98 3E 44 1C 3B D2 6E BA AE 4A A1 F9 51 29 E5 E5 46 70 F1",
+					"86 F7 E4 37 FA A5 A7 FC E1 5D 1D DC B9 EA EA EA 37 76 67 B8",
+					"E0 C0 94 E8 67 EF 46 C3 50 EF 54 A7 F5 9D D6 0B ED 92 AE 83"
+				];
 				
-				var hashed:String = hash(tests[t]);
-				var hex:Array = [];
-				for (var h:int = 0; h < hashed.length; h++) {
-					hex.push((0x100 + hashed.charCodeAt(h)).toString(16).replace('1', '').toUpperCase());
+				for (var t:int = 0; t < tests.length; t++) {
+					trace("Test " + (t + 1) + ":   " + tests[t]);
+					trace("expected: " + results[t]);
+					
+					var hashed:String = hash(tests[t]);
+					var hex:Array = [];
+					for (var h:int = 0; h < hashed.length; h++) {
+						hex.push((0x100 + hashed.charCodeAt(h)).toString(16).replace('1', '').toUpperCase());
+					}
+					var result:String = hex.join(" ");
+					trace("result:   " + result);
+					trace("correct:  " + (result === results[t]));
+					trace();
 				}
-				var result:String = hex.join(" ");
-				trace("result:   " + result);
-				trace("correct:  " + (result === results[t]));
-				trace();
 			}
 		}
 	}
