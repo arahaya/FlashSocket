@@ -3,7 +3,7 @@ package org.flashsocket.utils {
 	
 	public class StringUtil {
 		public static function trim(input:String):String {
-			return input.replace(/^([\s|\t|\n]+)?(.*)([\s|\t|\n]+)?$/gm, "$2");
+			return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
 		}
 		
 		public static function toBytes(input:String):ByteArray {
