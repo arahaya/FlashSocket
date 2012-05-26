@@ -30,6 +30,8 @@ package org.flashsocket.websocket {
 	[Event(name = "close", type = "org.flashsocket.websocket.events.CloseEvent")]
 	[Event(name = "message", type = "org.flashsocket.websocket.events.MessageEvent")]
 	[Event(name = "exception", type = "org.flashsocket.websocket.events.ExceptionEvent")]
+	[Event(name = "readyStateChange", type = "org.flashsocket.websocket.events.ReadyStateEvent")]
+	[Event(name = "bufferEmpty", type = "flash.events.Event")]
 	
 	public class WebSocketClientHandler extends EventDispatcher {
 		public static const WEBSOCKET_VERSION:String = "13";
@@ -65,6 +67,7 @@ package org.flashsocket.websocket {
 		private var _expectedChallengeResponse:String;
 		private var _fragment:WebSocketFrame;
 		private var _emptyBufferTimeout:int;
+		private var _openingHandshakeTimeout:int;
 		private var _closingHandshakeTimeout:int;
 		
 		private var _secure:Boolean;
@@ -103,10 +106,10 @@ package org.flashsocket.websocket {
 			headers.push('Connection: Upgrade');
 			headers.push('Host: ' + _hostport);
 			headers.push('Origin: ' + _origin);
-			if (_cookie) {
+			if (_cookie.length) {
 				headers.push('Cookie: ' + _cookie);
 			}
-			if (_protocols) {
+			if (_protocols.length) {
 				headers.push('Sec-WebSocket-Protocol: ' + _protocols.join(", "));
 			}
 			headers.push('Sec-WebSocket-Key: ' + key);
@@ -116,6 +119,8 @@ package org.flashsocket.websocket {
 			
 			_socket.writeUTFBytes(headers.join('\r\n'));
 			_socket.flush();
+			
+			_openingHandshakeTimeout = setTimeout(closeConnection, 20000);
 		}
 		
 		private function readHttpHeader(buffer:ByteArray):String {
@@ -570,6 +575,7 @@ package org.flashsocket.websocket {
 		private function closeConnection():void {
 			Debugger.log("closeConnection");
 			
+			clearTimeout(_openingHandshakeTimeout);
 			clearTimeout(_closingHandshakeTimeout);
 			
 			if (_socket.connected) {
