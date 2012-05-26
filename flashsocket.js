@@ -10,12 +10,12 @@
 // url for flashsocket.swf location
 // __FLASHSOCKET__SWF_LOCATION = 'flashsocket.swf'
 
-(function () {
+(function (window) {
     'use strict';
     
     // A simple logging function for development
     ;;; function trace() {
-    ;;;     if (global[NAMESPACE + 'DEBUG']) {
+    ;;;     if (window[NAMESPACE + 'DEBUG']) {
     ;;;         try {
     ;;;             Function.prototype.apply.call(console.log, console, Array.prototype.slice.call(arguments));
     ;;;         } catch (e) {}
@@ -26,17 +26,15 @@
     ;;;     }
     ;;; };
     
-    var global = window,
-        NAMESPACE = '__FLASHSOCKET__',
+    var NAMESPACE = '__FLASHSOCKET__',
         FLASH_PLAYER_VERSION = '9.0.0',
         STATE_CONNECTING = 0,
         STATE_OPEN = 1,
         STATE_CLOSING = 2,
         STATE_CLOSED = 3,
         
-        // Selected the api to use
-        // TODO: allow user to select an api
-        api = (global[NAMESPACE + 'FORCE_FLASH'] && FlashSocket) || (global.WebSocket || global.MozWebSocket) || FlashSocket,
+        // Select the api to use
+        api = (window[NAMESPACE + 'FORCE_FLASH'] && FlashSocket) || (window.WebSocket || window.MozWebSocket) || FlashSocket,
         
         instances = [],
         callbacks = [],
@@ -57,7 +55,7 @@
             
             swfobject.addDomLoadEvent(function () {
                 var loader = document.createElement('div'),
-                    swfUrl = global[NAMESPACE + 'SWF_LOCATION'] || 'flashsocket.swf';
+                    swfUrl = window[NAMESPACE + 'SWF_LOCATION'] || 'flashsocket.swf';
                 
                 loader.id = NAMESPACE + 'LOADER';
                 document.body.appendChild(loader);
@@ -115,16 +113,20 @@
         // callback will not be called if an exception is thrown
         callFlash = function (functionName, args, callback) {
             onready(function () {
+                var ret;
+                
                 try {
-                    (callback || isFunction)(flash[functionName].apply(flash, args));
+                    ret = flash[functionName].apply(flash, args);
                 } catch (e) {
                     throw new Error(flash.getLastException());
                 }
+                
+                callback && callback(ret);
             });
         },
         // Supports native WebSocket or has required flash player version
         supported = function () {
-            swfobject.hasFlashPlayerVersion(FLASH_PLAYER_VERSION) || !!(global.WebSocket || global.MozWebSocket);
+            swfobject.hasFlashPlayerVersion(FLASH_PLAYER_VERSION) || !!(window.WebSocket || window.MozWebSocket);
         },
         onready = function (callback) {
             if (flashReady) {
@@ -353,5 +355,5 @@
     //api.onready = onready;
     
     // Export
-    global.FlashSocket = api;
-}());
+    window.FlashSocket = api;
+}(window));
