@@ -1,21 +1,20 @@
 // Config properties
-// required to be defined before script load
 //
 // force FlashSocket over native WebSocket
-// __FLASHSOCKET__FORCE_FLASH = false;
-//
-// enable debug mode for development
-// __FLASHSOCKET__DEBUG = false;
+// FlashSocket.forceFlash = false;
 //
 // url for flashsocket.swf location
-// __FLASHSOCKET__SWF_LOCATION = 'flashsocket.swf'
+// FlashSocket.swfUrl = 'flashsocket.swf'
+//
+// enable debug mode for development
+// FlashSocket.debug = false;
 
 (function (window) {
     'use strict';
     
     // A simple logging function for development
     ;;; function trace() {
-    ;;;     if (window[NAMESPACE + 'DEBUG']) {
+    ;;;     if (FlashSocket.debug) {
     ;;;         try {
     ;;;             Function.prototype.apply.call(console.log, console, Array.prototype.slice.call(arguments));
     ;;;         } catch (e) {}
@@ -33,9 +32,7 @@
         STATE_CLOSING = 2,
         STATE_CLOSED = 3,
         
-        // Select the api to use
-        api = (window[NAMESPACE + 'FORCE_FLASH'] && FlashSocket) || (window.WebSocket || window.MozWebSocket) || FlashSocket,
-        
+        WebSocket = window.WebSocket || window.MozWebSocket,
         instances = [],
         callbacks = [],
         
@@ -54,15 +51,14 @@
             flashInitialized = true;
             
             swfobject.addDomLoadEvent(function () {
-                var loader = document.createElement('div'),
-                    swfUrl = window[NAMESPACE + 'SWF_LOCATION'] || 'flashsocket.swf';
+                var loader = document.createElement('div');
                 
                 loader.id = NAMESPACE + 'LOADER';
                 document.body.appendChild(loader);
                 
                 swfobject.embedSWF(
                     // swf url
-                    swfUrl,
+                    FlashSocket.swfUrl,
                     // replaced element id
                     loader.id,
                     // swf width
@@ -86,7 +82,8 @@
                         if (e.success) {
                             flash = e.ref;
                         } else {
-                            ;;; trace("Failed to embed swf '" + swfUrl + "'");
+                            // Client doesn't have the required flash player version
+                            throw new Error("FlashSocket is not supported");
                         }
                     }
                 );
@@ -126,7 +123,7 @@
         },
         // Supports native WebSocket or has required flash player version
         supported = function () {
-            swfobject.hasFlashPlayerVersion(FLASH_PLAYER_VERSION) || !!(window.WebSocket || window.MozWebSocket);
+            swfobject.hasFlashPlayerVersion(FLASH_PLAYER_VERSION) || !!WebSocket;
         },
         onready = function (callback) {
             if (flashReady) {
@@ -139,12 +136,19 @@
     
     // FlashSocket Constructor
     function FlashSocket(url, protocols) {
+        // Enable FlashSocket call without the new operator
         var instance = this || new FlashSocket(url, protocols);
         
+        // Normalize protocols
         if (protocols === undefined) {
             protocols = [];
         } else if (Object.prototype.toString.call(protocols) !== '[object Array]') {
             protocols = [protocols];
+        }
+        
+        // Use native WebSocket if exists
+        if (!FlashSocket.forceFlash && WebSocket) {
+            return new WebSocket(url, protocols);
         }
         
         instance._id = instances.push(instance) - 1;
@@ -160,8 +164,10 @@
         instance.protocol = '';
         instance.readyState = STATE_CONNECTING;
         instance.bufferedAmount = 0;
+        
         // Not supported
         instance.binaryType = 'blob';
+        
         instance.onopen = null;
         instance.onerror = null;
         instance.onclose = null;
@@ -351,9 +357,12 @@
     };
     
     // Support
-    api.supported = supported;
+    FlashSocket.supported = supported;
+    FlashSocket.forceFlash = false;
+    FlashSocket.swfUrl = 'flashsocket.swf';
+    FlashSocket.debug = false;
     //api.onready = onready;
     
     // Export
-    window.FlashSocket = api;
+    window.FlashSocket = FlashSocket;
 }(window));
