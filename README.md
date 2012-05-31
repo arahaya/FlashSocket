@@ -3,8 +3,10 @@ FlashSocket.js
 
 FlashSocket is a JavaScript/Flash library which adds WebSocket support to old browsers such as IE6.
 
-**This project is still in a alpha state and does not implement full features (eg. TLS support, Cookie support).**  
-If you are looking for a WebSocket polyfill, I highly recommend you use one of the libraries listed below. They are more stable and well maintained.  
+This project is aimed to enable WebSocket in old browsers while maintaining a decent performance.  
+**Currently all features are implemented but still in a beta state**.
+
+If IE6 support is not required I highly recommend you use one of the libraries listed below. They are more stable and well maintained.  
 [https://github.com/Modernizr/Modernizr/wiki/HTML5-Cross-browser-Polyfills](https://github.com/Modernizr/Modernizr/wiki/HTML5-Cross-browser-Polyfills)
 
 
