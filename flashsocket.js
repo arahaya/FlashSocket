@@ -261,69 +261,57 @@
             
             var instance = instances[id];
             
-            if (!instance) {
-                ;;; trace("Instance not found '" + id + "'");
-                return;
+            if (instance) {
+                // These properties will not change any more
+                instance.url = url;
+                instance.extensions = extensions;
+                instance.protocols = protocols;
+                
+                instance.dispatchEvent({
+                    type: 'open',
+                    target: instance
+                });
             }
-            
-            // These properties will not change any more
-            instance.url = url;
-            instance.extensions = extensions;
-            instance.protocols = protocols;
-            
-            instance.dispatchEvent({
-                type: 'open',
-                target: instance
-            });
         }),
         onerror: async(function (id) {
             ;;; trace('FlashSocket.ExternalInterface.onerror', id);
             
             var instance = instances[id];
             
-            if (!instance) {
-                ;;; trace("Instance not found '" + id + "'");
-                return;
+            if (instance) {
+                instance.dispatchEvent({
+                    type: 'error',
+                    target: instance
+                });
             }
-            
-            instance.dispatchEvent({
-                type: 'error',
-                target: instance
-            });
         }),
         onclose: async(function (id, code, reason, wasClean) {
             ;;; trace('FlashSocket.ExternalInterface.onclose', id, code, reason, wasClean);
             
             var instance = instances[id];
             
-            if (!instance) {
-                ;;; trace("Instance not found '" + id + "'");
-                return;
+            if (instance) {
+                instance.dispatchEvent({
+                    type: 'close',
+                    target: instance,
+                    code: code,
+                    reason: reason,
+                    wasClean: wasClean
+                });
             }
-            
-            instance.dispatchEvent({
-                type: 'close',
-                target: instance,
-                code: code,
-                reason: reason,
-                wasClean: wasClean
-            });
         }),
         onmessage: async(function (id, data) {
             ;;; trace('FlashSocket.ExternalInterface.onmessage', id, data);
             
             var instance = instances[id];
             
-            if (!instance) {
-                ;;; trace("Instance not found '" + id + "'");
-                return;
+            if (instance) {
+                instance.dispatchEvent({
+                    type: 'message',
+                    target: instance,
+                    data: data
+                });
             }
-            
-            instance.dispatchEvent({
-                type: 'message',
-                target: instance,
-                data: data
-            });
         }),
         onexception: async(function (id, name, message) {
             ;;; trace('FlashSocket.ExternalInterface.onexception', id, name, message);
@@ -335,24 +323,18 @@
             
             var instance = instances[id];
             
-            if (!instance) {
-                ;;; trace("Instance not found '" + id + "'");
-                return;
+            if (instance) {
+                instance.readyState = state;
             }
-            
-            instance.readyState = state;
         },
-        onbufferempty: function (id, name, message) {
+        onbufferempty: function (id) {
             ;;; trace('FlashSocket.ExternalInterface.bufferempty', id);
             
             var instance = instances[id];
             
-            if (!instance) {
-                ;;; trace("Instance not found '" + id + "'");
-                return;
+            if (instance) {
+                instance.bufferedAmount = 0;
             }
-            
-            instance.bufferedAmount = 0;
         }
     };
     
