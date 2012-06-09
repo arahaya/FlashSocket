@@ -143,6 +143,7 @@ package org.flashsocket {
 			try {
 				instance = new WebSocket(url, protocols, origin, cookie);
 			} catch (e:Error) {
+				Debugger.log(e);
 				lastException = e;
 				throw e;
 			}
@@ -178,6 +179,7 @@ package org.flashsocket {
 			try {
 				instances[instanceId].send(data);
 			} catch (e:Error) {
+				Debugger.log(e);
 				lastException = e;
 				throw e;
 			}
@@ -191,6 +193,7 @@ package org.flashsocket {
 			try {
 				instances[instanceId].close(code, reason);
 			} catch (e:Error) {
+				Debugger.log(e);
 				lastException = e;
 				throw e;
 			}
@@ -216,7 +219,7 @@ package org.flashsocket {
 			return instances[instanceId] ? instances[instanceId].protocol : "";
 		}
 		
-		private function onExternalGetLastException(instanceId:int):String {
+		private function onExternalGetLastException():String {
 			return lastException ? lastException.message : "";
 		}
 	}
