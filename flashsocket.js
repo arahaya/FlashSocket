@@ -13,17 +13,17 @@
     'use strict';
     
     // A simple logging function for development
-    ;;; function trace() {
-    ;;;     if (FlashSocket.debug) {
-    ;;;         try {
-    ;;;             Function.prototype.apply.call(console.log, console, Array.prototype.slice.call(arguments));
-    ;;;         } catch (e) {}
-    ;;;         
-    ;;;         try {
-    ;;;             document.getElementById("console").innerHTML += Array.prototype.join.call(arguments, ' ') + '<br>\n';
-    ;;;         } catch (e) {}
-    ;;;     }
-    ;;; };
+    function Debug() {
+        if (FlashSocket.debug) {
+            try {
+                Function.prototype.apply.call(console.log, console, Array.prototype.slice.call(arguments));
+            } catch (e) {}
+            
+            try {
+                document.getElementById("console").innerHTML += Array.prototype.join.call(arguments, ' ') + '<br>\n';
+            } catch (e) {}
+        }
+    };
     
     var NAMESPACE = '__FLASHSOCKET__',
         FLASH_PLAYER_VERSION = '9.0.0',
@@ -77,7 +77,7 @@
                     { style: 'position:absolute;top:0px;left:0px;' },
                     // callback
                     function (e) {
-                        ;;; trace('swfobject.embedSWF.callback', e.id, e.success);
+                        Debug('swfobject.embedSWF.callback', e.id, e.success);
                         
                         if (e.success) {
                             flash = e.ref;
@@ -187,11 +187,11 @@
     // FlashSocket Public methods
     FlashSocket.prototype = {
         close: function (code, reason) {
-            ;;; trace("FlashSocket.close", this._id, code, reason);
+            Debug("FlashSocket.close", this._id, code, reason);
             callFlash("close", [this._id, code === undefined ? -1 : code, reason === undefined ? "" : reason]);
         },
         send: function (data) {
-            ;;; trace("FlashSocket.send", this._id, data);
+            Debug("FlashSocket.send", this._id, data);
             // Can't pass undefined to flash so do arugment checks in js
             if (!arguments.length) {
                 throw new SyntaxError("Not enough arguments");
@@ -246,7 +246,7 @@
     // Flash to JavaScript interface
     FlashSocket.ExternalInterface = {
         onready: async(function () {
-            ;;; trace('FlashSocket.ExternalInterface.onready');
+            Debug('FlashSocket.ExternalInterface.onready');
             
             flashReady = true;
             
@@ -257,7 +257,7 @@
             callbacks = null;
         }),
         onopen: async(function (id, url, extensions, protocols) {
-            ;;; trace('FlashSocket.ExternalInterface.onopen', id, url, extensions, protocols);
+            Debug('FlashSocket.ExternalInterface.onopen', id, url, extensions, protocols);
             
             var instance = instances[id];
             
@@ -274,7 +274,7 @@
             }
         }),
         onerror: async(function (id) {
-            ;;; trace('FlashSocket.ExternalInterface.onerror', id);
+            Debug('FlashSocket.ExternalInterface.onerror', id);
             
             var instance = instances[id];
             
@@ -286,7 +286,7 @@
             }
         }),
         onclose: async(function (id, code, reason, wasClean) {
-            ;;; trace('FlashSocket.ExternalInterface.onclose', id, code, reason, wasClean);
+            Debug('FlashSocket.ExternalInterface.onclose', id, code, reason, wasClean);
             
             var instance = instances[id];
             
@@ -301,7 +301,7 @@
             }
         }),
         onmessage: async(function (id, data) {
-            ;;; trace('FlashSocket.ExternalInterface.onmessage', id, data);
+            Debug('FlashSocket.ExternalInterface.onmessage', id, data);
             
             var instance = instances[id];
             
@@ -314,12 +314,12 @@
             }
         }),
         onexception: async(function (id, name, message) {
-            ;;; trace('FlashSocket.ExternalInterface.onexception', id, name, message);
+            Debug('FlashSocket.ExternalInterface.onexception', id, name, message);
             
             throw new Error(message);
         }),
         onreadystatechange: function (id, state) {
-            ;;; trace('FlashSocket.ExternalInterface.onreadystatechange', id, state);
+            Debug('FlashSocket.ExternalInterface.onreadystatechange', id, state);
             
             var instance = instances[id];
             
@@ -328,7 +328,7 @@
             }
         },
         onbufferempty: function (id) {
-            ;;; trace('FlashSocket.ExternalInterface.bufferempty', id);
+            Debug('FlashSocket.ExternalInterface.bufferempty', id);
             
             var instance = instances[id];
             
@@ -342,7 +342,7 @@
     FlashSocket.supported = supported;
     FlashSocket.forceFlash = false;
     FlashSocket.swfUrl = 'flashsocket.swf';
-    FlashSocket.debug = false;
+    //FlashSocket.debug = false;
     //api.onready = onready;
     
     // Export
